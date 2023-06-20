@@ -33,7 +33,7 @@ import Servant.Exception (ServantException, Throws, ToServantErr (..), fromServa
 #else
 import Data.Semigroup ((<>))
 #endif
-import Control.Monad.Catch       (Exception (..), catch)
+import Control.Monad.Catch       (Exception (..), catch, MonadThrow(..))
 import Control.Monad.Error.Class (MonadError (..))
 import Data.Kind                 (Type)
 import Data.Maybe                (fromMaybe)
@@ -54,6 +54,7 @@ import Servant.Server.Internal.RoutingApplication (Delayed (..))
 
 import qualified Data.Text          as Text
 import qualified Data.Text.Encoding as Text
+import Debug.Trace
 
 -- | Main 'HasServer' instance for 'Throws e'. Catches exceptions of type 'e' in
 -- the upstream server and encodes them using 'ToServantErr' and 'MimeRender' to
@@ -71,6 +72,7 @@ instance ( Exception e
    where
     extendServer Delayed{..} =
       Delayed { serverD = \c p h a b req -> do
+                  traceShowM "In serverD"
                   let accH = fromMaybe ("*" <> "/" <> "*") . lookup hAccept $ requestHeaders req
                   handleException (Proxy :: Proxy ct) accH <$> serverD c p h a b req
               , ..
@@ -80,7 +82,8 @@ instance ( Exception e
       -- AllMime and AllMimeRender should prevent 'Nothing'
       let contentType = fromMaybe "" $ matchAccept (allMime ct) h
           body = fromMaybe "" $ mapAccept (allMimeRender ct e) h
-      throwError
+      traceShowM "In handleException"
+      throwM
 #if MIN_VERSION_servant_server(0,16,0)
         ServerError
 #else
